@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Trắc Nghiệm Tự Động</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body class="bg-gray-100 font-sans h-screen flex flex-col">
+    <header class="bg-emerald-600 text-white text-center p-4 shadow-md">
+        <h1 class="text-2xl font-bold" id="exam-title">ĐANG TẢI DỮ LIỆU ĐỀ THI...</h1>
+    </header>
+
+    <main class="flex-grow container mx-auto p-4 max-w-3xl">
+        <div id="login-screen" class="bg-white p-6 rounded-lg shadow-lg text-center mt-10">
+            <h2 class="text-xl font-bold mb-4">Nhập thông tin để bắt đầu làm bài</h2>
+            <input type="text" id="studentName" placeholder="Họ và Tên học sinh" class="w-full p-3 border rounded mb-4 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <button onclick="startQuiz()" id="btn-start" class="bg-emerald-600 text-white font-bold py-3 px-6 rounded hover:bg-emerald-700 w-full hidden">
+                BẮT ĐẦU LÀM BÀI
+            </button>
+            <p id="loading-msg" class="text-emerald-600 font-bold animate-pulse">Đang kết nối hệ thống...</p>
+        </div>
+
+        <div id="quiz-screen" class="hidden bg-white p-6 rounded-lg shadow-lg">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <div>
+                    <span class="font-bold text-lg block text-gray-700" id="display-name"></span>
+                    <span class="font-bold text-2xl text-emerald-600" id="section-title">PHẦN 1</span>
+                </div>
+                <div class="text-right">
+                    <span class="font-bold text-red-500 text-2xl">⏱ <span id="timer">0</span>s</span>
+                </div>
+            </div>
+            
+            <div id="questions-container" class="space-y-6 mt-4"></div>
+
+            <button onclick="submitSection()" class="mt-8 bg-green-500 text-white font-bold py-3 px-6 rounded hover:bg-green-600 w-full text-lg">
+                NỘP BÀI <span id="btn-submit-text">PHẦN 1</span>
+            </button>
+        </div>
+
+        <div id="break-screen" class="hidden bg-white p-6 rounded-lg shadow-lg text-center mt-10">
+            <h2 class="text-2xl font-bold mb-4 text-blue-600" id="break-title">Hoàn thành Phần!</h2>
+            <button onclick="nextSection()" class="bg-emerald-600 text-white font-bold py-3 px-6 rounded hover:bg-emerald-700 w-full text-lg shadow-md">
+                TIẾP TỤC
+            </button>
+        </div>
+
+        <div id="result-screen" class="hidden bg-white p-6 rounded-lg shadow-lg text-center mt-10 border-t-8 border-emerald-600">
+            <h2 class="text-3xl font-bold mb-4 text-green-600">🎉 ĐÃ HOÀN THÀNH BÀI THI! 🎉</h2>
+            <p class="text-xl mt-2 text-emerald-700">🏆 TỔNG ĐIỂM: <span id="final-score" class="font-bold text-2xl"></span>/210</p>
+            <p class="text-xl mt-2 mb-4 text-red-600">⏱ TỔNG THỜI GIAN: <span id="final-time" class="font-bold text-2xl"></span>s</p>
+            <p class="text-md font-bold text-gray-700 mb-4" id="status-msg">Đang đồng bộ kết quả lên hệ thống để giáo viên nhận xét...</p>
+        </div>
+    </main>
+
+    <script>
+        // === ĐIỀN LINK API CỦA BẠN VÀO ĐÂY ===
+        const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz5laBV_kzzmwpZBOqnBY6XQe7q4ekkjUNxhUfs4ispkBbNZ5cAQrbwkRjCaSEk5GPzYw/exec";
+
+        let questions = [];
+        let examId = "khtn6-05"; // Mặc định nếu không có trên link
+        let studentName = "";
+        let currentSection = 1; 
+        let startTime;
+        let timerInterval;
+        
+        let totalScore = 0;
+        let totalTime = 0;
+        let wrongAnswersLog = []; // Lưu trữ chi tiết câu sai
+
+        // Tự động tải dữ liệu khi mở web
+        window.onload = async function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if(urlParams.get('id')) examId = urlParams.get('id');
+            
+            document.getElementById("exam-title").innerText = `BÀI KIỂM TRA MÃ ĐỀ: ${examId.toUpperCase()}`;
+            
+            try {
+                const response = await fetch(`${APPS_SCRIPT_URL}?id=${examId}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById("loading-msg").innerText = "❌ Không tìm thấy mã đề trên hệ thống!";
+                    document.getElementById("loading-msg").classList.replace("text-emerald-600", "text-red-600");
+                    return;
+                }
+                questions = data;
+                document.getElementById("loading-msg").classList.add("hidden");
+                document.getElementById("btn-start").classList.remove("hidden");
+            } catch (error) {
+                document.getElementById("loading-msg").innerText = "❌ Lỗi kết nối, vui lòng tải lại trang!";
+            }
+        };
+
+        function startQuiz() {
+            studentName = document.getElementById("studentName").value.trim();
+            if (!studentName) return alert("Vui lòng nhập họ tên!");
+            
+            document.getElementById("login-screen").classList.add("hidden");
+            document.getElementById("display-name").innerText = "Học sinh: " + studentName;
+            loadSection(currentSection);
+        }
+
+        function loadSection(sectionNum) {
+            document.getElementById("section-title").innerText = `PHẦN ${sectionNum}`;
+            document.getElementById("btn-submit-text").innerText = `PHẦN ${sectionNum}`;
+
+            const container = document.getElementById("questions-container");
+            container.innerHTML = ""; 
+
+            const startIndex = (sectionNum - 1) * 7;
+            const endIndex = sectionNum * 7;
+            let allHtml = ""; 
+
+            for (let i = startIndex; i < endIndex; i++) {
+                if(!questions[i]) break;
+                let q = questions[i];
+                let html = `<div class="bg-gray-50 p-4 rounded shadow-sm border border-gray-200"><p class="font-bold mb-3 text-md text-gray-800">${q.question}</p>`;
+                
+                if (q.type === "trac-nghiem") {
+                    q.options.forEach(opt => {
+                        html += `<label class="block mb-2 cursor-pointer hover:bg-emerald-50 p-2 rounded transition flex items-center"><input type="radio" name="q${i}" value="${opt}" class="mr-2 w-4 h-4 text-emerald-600"> <span class="text-sm">${opt}</span></label>`;
+                    });
+                } else if (q.type === "tra-loi-ngan") {
+                    html += `<input type="text" id="q${i}" class="w-full p-2.5 border border-gray-300 rounded outline-none" placeholder="Gõ câu trả lời...">`;
+                } else if (q.type === "dung-sai") {
+                    html += `<div class="flex gap-4 mt-2">
+                        <label class="cursor-pointer px-4 py-2 border rounded"><input type="radio" name="q${i}" value="Đúng" class="mr-2"> Đúng</label> 
+                        <label class="cursor-pointer px-4 py-2 border rounded"><input type="radio" name="q${i}" value="Sai" class="mr-2"> Sai</label>
+                    </div>`;
+                }
+                html += `</div>`;
+                allHtml += html;
+            }            
+
+            container.innerHTML = allHtml;
+            if (window.MathJax) { MathJax.typesetPromise([container]); }
+
+            document.getElementById("break-screen").classList.add("hidden");
+            document.getElementById("quiz-screen").classList.remove("hidden");
+            window.scrollTo(0, 0);
+
+            if(timerInterval) clearInterval(timerInterval); 
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                document.getElementById("timer").innerText = Math.floor((Date.now() - startTime) / 1000);
+            }, 1000);
+        }
+
+        function submitSection() {
+            if (!confirm(`Bạn có chắc muốn nộp bài Phần ${currentSection}?`)) return;
+            clearInterval(timerInterval);
+            const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+            totalTime += timeTaken;
+
+            const startIndex = (currentSection - 1) * 7;
+            const endIndex = currentSection * 7;
+
+            for (let i = startIndex; i < endIndex; i++) {
+                if(!questions[i]) break;
+                let q = questions[i];
+                let studentAns = "Bỏ trống";
+                let isCorrect = false;
+
+                if (q.type === "trac-nghiem" || q.type === "dung-sai") {
+                    const selected = document.querySelector(`input[name="q${i}"]:checked`);
+                    if (selected) studentAns = selected.value.trim();
+                } else if (q.type === "tra-loi-ngan") {
+                    const answerInput = document.getElementById(`q${i}`);
+                    if (answerInput) studentAns = answerInput.value.trim();
+                }
+
+                // Chấm điểm (Không phân biệt hoa thường)
+                if (studentAns.toLowerCase() === q.correct.toLowerCase()) {
+                    isCorrect = true;
+                    totalScore += 10;
+                }
+
+                // Nếu làm sai, ghi lại log để nộp về hệ thống
+                if (!isCorrect) {
+                    wrongAnswersLog.push(`Câu ${i+1}: Chọn [${studentAns}] - Sửa lại: [${q.correct}]`);
+                }
+            }
+
+            document.getElementById("quiz-screen").classList.add("hidden");
+
+            if (currentSection < 3) {
+                document.getElementById("break-screen").classList.remove("hidden");
+            } else {
+                finishQuiz();
+            }
+        }
+
+        function nextSection() {
+            currentSection++; 
+            loadSection(currentSection);
+        }
+
+        function finishQuiz() {
+            document.getElementById("final-score").innerText = totalScore;
+            document.getElementById("final-time").innerText = totalTime;
+            document.getElementById("result-screen").classList.remove("hidden");
+            
+            // Đóng gói dữ liệu gửi về Google Sheets
+            const payload = {
+                hoTen: studentName,
+                maDe: examId,
+                diem: totalScore,
+                thoiGian: totalTime,
+                cauSai: wrongAnswersLog.length > 0 ? wrongAnswersLog.join(" | ") : "Làm đúng 100%"
+            };
+
+            // Dùng text/plain để vượt qua lỗi CORS của trình duyệt khi POST
+            fetch(APPS_SCRIPT_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(payload)
+            })
+            .then(() => {
+                document.getElementById("status-msg").innerHTML = "✅ Nộp bài thành công! Giáo viên đã nhận được bài làm chi tiết của em.";
+                document.getElementById("status-msg").classList.replace("text-gray-700", "text-green-600");
+            })
+            .catch(error => {
+                document.getElementById("status-msg").innerText = "❌ Lỗi mạng: Không thể đồng bộ kết quả!";
+                document.getElementById("status-msg").classList.replace("text-gray-700", "text-red-600");
+            });
+        }
+    </script>
+</body>
+</html>
