@@ -4,8 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hệ Thống Trắc Nghiệm Tự Động</title>
-    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
-    
+    <!-- Font chữ tròn trịa, thân thiện -->
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Thêm Thư viện Icon FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Cấu hình ép Tailwind dùng font Quicksand -->
+    <script>
+        tailwind.config = { theme: { extend: { fontFamily: { sans: ['Quicksand', 'sans-serif'], } } } }
+    </script>
     <script>
         window.MathJax = {
             tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
@@ -14,13 +20,44 @@
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        /* CSS tuỳ chỉnh thêm cho các hiệu ứng mềm mại */
+        body {
+            /* Nền gradient pastel nhẹ nhàng, kích thích sự sáng tạo */
+            background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+            background-attachment: fixed;
+        }
+        
+        /* Chỉnh style cho radio button trông giống nút bấm hơn */
+        .radio-custom:checked + div {
+            background-color: #e0e7ff; /* indigo-100 */
+            border-color: #6366f1; /* indigo-500 */
+            box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.2);
+        }
+        
+        /* Hiệu ứng nổi bọt cho các thẻ */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans h-screen flex flex-col">
+
+<body class="font-sans h-screen flex flex-col text-gray-800">
+    
     <header class="bg-emerald-600 text-white text-center p-4 shadow-md">
         <h1 class="text-2xl font-bold" id="exam-title">ĐANG TẢI DỮ LIỆU ĐỀ THI...</h1>
     </header>
 
     <main class="flex-grow container mx-auto p-4 max-w-3xl">
+            <!-- Header nhiều màu sắc -->
+        <header class="bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 text-white text-center p-5 shadow-lg rounded-b-3xl mx-2">
+            <h1 class="text-2xl font-bold drop-shadow-md flex items-center justify-center gap-3" id="exam-title">
+                <i class="fa-solid fa-spinner fa-spin"></i> ĐANG TẢI DỮ LIỆU ĐỀ THI...
+            </h1>
+        </header>
         <div id="login-screen" class="bg-white p-6 rounded-lg shadow-lg text-center mt-10">
             <h2 class="text-xl font-bold mb-4">Nhập thông tin để bắt đầu làm bài</h2>
             <input type="text" id="studentName" placeholder="Họ và Tên học sinh" class="w-full p-3 border rounded mb-4 focus:outline-none focus:ring-2 focus:ring-emerald-500">
